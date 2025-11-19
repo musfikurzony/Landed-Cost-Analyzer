@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>FOB → LDP Calculator (USA tariffs)</title>
+  <style>
+    :root{--bg:#0f1724;--card:#0b1220;--muted:#9aa6b2;--accent:#7c3aed;--glass:rgba(255,255,255,0.04)}
+    *{box-sizing:border-box;font-family:Inter,ui-sans-serif,system-ui,Segoe UI,Roboto,'Helvetica Neue',Arial}
+    body{margin:0;background:linear-gradient(180deg,#041027 0%, #071733 60%, #031024 100%);color:#e6eef6;min-height:100vh;padding:28px}
+    .wrap{max-width:980px;margin:0 auto}
+    header{display:flex;align-items:center;gap:16px;margin-bottom:18px}
+    .logo{width:56px;height:56px;border-radius:12px;background:linear-gradient(135deg,#4f46e5,#06b6d4);display:flex;align-items:center;justify-content:center;font-weight:700}
+    h1{margin:0;font-size:20px}
+    p.lead{margin:4px 0 0;color:var(--muted);font-size:13px}
+
+    .grid{display:grid;grid-template-columns:1fr 360px;gap:18px}
+    .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));padding:18px;border-radius:12px;box-shadow:0 6px 18px rgba(2,6,23,0.7);}
+    label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+    input[type='number'],select{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);background:rgba(15,23,42,0.96);color:#e5edf7;}
+    select option{background:#020617;color:#e5edf7;}
+    .muted{color:var(--muted);font-size:13px}
+
+    .big{font-size:20px;font-weight:700}
+    .kpi{display:flex;gap:10px;flex-wrap:wrap}
+    .kpi > div{background:var(--glass);padding:10px;border-radius:10px;min-width:130px}
+    .btn{background:linear-gradient(90deg,var(--accent),#06b6d4);border:none;padding:10px 12px;border-radius:10px;color:white;cursor:pointer}
+    .btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06)}
+    .small{font-size:13px;padding:8px 10px}
+    .footnote{color:var(--muted);font-size:13px;margin-top:10px}
+
+    .country-table{width:100%;border-collapse:collapse;margin-top:8px}
+    .country-table th,.country-table td{padding:6px;text-align:left;border-bottom:1px dashed rgba(255,255,255,0.03);font-size:13px}
+
+    @media (max-width:900px){.grid{grid-template-columns:1fr;}.logo{width:46px;height:46px}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="logo">LDP</div>
+      <div>
+        <h1>FOB → LDP Calculator (USA) — Tariff-aware</h1>
+        <p class="lead">Enter FOB and select country/product to compute Landed Price (LDP). Supports first-sale, back-calculation and target adjustments.</p>
+      </div>
+    </header>
+
+    <div class="grid">
+      <!-- LEFT: Main LDP calculation -->
+      <div class="card">
+        <div style="display:flex;gap:12px;align-items:center;margin-bottom:8px">
+          <div style="flex:1">
+            <label>FOB (USD)</label>
+            <input id="inputFOB" type="number" step="0.01" value="5.00" />
+          </div>
+          <div style="width:170px">
+            <label>Office commission (%)</label>
+            <input id="inputComm" type="number" step="0.01" value="5" />
+          </div>
+          <div style="width:120px">
+            <label>Other costs (USD)</label>
+            <input id="inputOther" type="number" step="0.01" value="0.50" />
+          </div>
+        </div>
+
+        <div style="display:flex;gap:12px;margin-top:8px;align-items:flex-end">
+          <div style="flex:1">
+            <label>Country</label>
+            <select id="selectCountry"></select>
+          </div>
+          <div style="width:140px">
+            <label>Product type</label>
+            <select id="selectProduct">
+              <option value="country">Use country duty</option>
+              <option value="cvc">Duty for CVC Products</option>
+              <option value="poly">Duty for Poly Products</option>
+            </select>
+          </div>
+          <div style="width:160px">
+            <label>First sale (%)</label>
+            <input id="inputFirstSale" type="number" step="0.01" value="0" />
+          </div>
+        </div>
+
+        <div style="display:flex;gap:12px;margin-top:12px;align-items:center">
+          <div style="flex:1">
+            <label>Duty % (editable)</label>
+            <input id="inputDuty" type="number" step="0.01" />
+          </div>
+          <div style="width:160px">
+            <label>Tariff % (editable)</label>
+            <input id="inputTariff" type="number" step="0.01" />
+          </div>
+
+          <div style="width:150px">
+            <label>&nbsp;</label>
+            <button id="btnCalc" class="btn">Calculate LDP</button>
+          </div>
+        </div>
+
+        <hr style="border:none;border-top:1px solid rgba(255,255,255,0.04);margin:14px 0" />
+
+        <div class="kpi">
+          <div>
+            <div class="muted">Manufacturer FOB</div>
+            <div id="outManu" class="big">-</div>
+          </div>
+          <div>
+            <div class="muted">Duty (USD)</div>
+            <div id="outDuty" class="big">-</div>
+          </div>
+          <div>
+            <div class="muted">Tariff (USD)</div>
+            <div id="outTariff" class="big">-</div>
+          </div>
+          <div>
+            <div class="muted">LDP (USD)</div>
+            <div id="outLDP" class="big">-</div>
+          </div>
+        </div>
+
+        <div class="footnote">Notes: Duty & Tariff applied on Manufacturer FOB when First Sale &gt; 0. Country and Product type selections auto-populate Duty & Tariff fields.</div>
+      </div>
+
+      <!-- RIGHT: Back-calculation + settings -->
+      <div class="card">
+        <h3 style="margin-top:0">Back-calculations and scenarios</h3>
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+          <div style="flex:1">
+            <label>Target LDP (USD)</label>
+            <input id="inputTargetLDP" type="number" step="0.01" />
+          </div>
+          <div style="width:120px;align-self:flex-end">
+            <label>&nbsp;</label>
+            <button id="btnBackCalc" class="btn small">Calc FOB for Target</button>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+          <div style="flex:1">
+            <label>Reduce current LDP by (USD)</label>
+            <input id="inputReduce" type="number" step="0.01" />
+          </div>
+          <div style="width:140px;align-self:flex-end">
+            <label>&nbsp;</label>
+            <button id="btnReduce" class="btn small ghost">What FOB to offer?</button>
+          </div>
+        </div>
+
+        <div style="margin-top:8px">
+          <label>Results</label>
+          <div style="background:rgba(255,255,255,0.02);padding:10px;border-radius:8px;min-height:60px">
+            <div id="resultText" class="muted">No calculation yet.</div>
+          </div>
+        </div>
+
+        <hr style="border:none;border-top:1px solid rgba(255,255,255,0.04);margin:12px 0" />
+
+        <div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+            <label>Country duty & tariff chart (preset values)</label>
+            <button id="btnToggleSettings" type="button" class="btn small ghost" style="padding-inline:12px">⚙ Settings</button>
+          </div>
+          <div id="countrySettings" style="margin-top:6px;display:none">
+            <table class="country-table">
+              <thead><tr><th>Country</th><th>US Duty (%)</th><th>US Tariff (%)</th></tr></thead>
+              <tbody id="countryTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+<script>
+const countryList = [
+  {name:'EGYPT',duty:0,tariff:10},{name:'KENYA',duty:0,tariff:10},{name:'JORDAN',duty:0,tariff:15},
+  {name:'BANGLADESH',duty:28,tariff:20},{name:'MADAGASCAR',duty:28,tariff:15},{name:'GHANA',duty:28,tariff:15},
+  {name:'CAMBODIA',duty:28,tariff:19},{name:'PAKISTAN',duty:28,tariff:19},{name:'INDONESIA',duty:28,tariff:19},
+  {name:'VIETNAM',duty:28,tariff:20},{name:'SRI LANKA',duty:28,tariff:20},{name:'CHINA',duty:28,tariff:30},{name:'MYANMAR',duty:28,tariff:40},{name:'INDIA',duty:28,tariff:60}
+];
+
+const selectCountry   = document.getElementById('selectCountry');
+const dutyInput       = document.getElementById('inputDuty');
+const tariffInput     = document.getElementById('inputTariff');
+const resultText      = document.getElementById('resultText');
+
+// Populate country dropdown
+countryList.forEach(c=>{
+  const opt = document.createElement('option');
+  opt.value = c.name;
+  opt.text = c.name;
+  selectCountry.appendChild(opt);
+});
+
+// Default to first country and populate duty/tariff
+if(countryList.length){
+  selectCountry.value = countryList[0].name;
+  dutyInput.value = countryList[0].duty;
+  tariffInput.value = countryList[0].tariff;
+}
+
+// Update duty/tariff when country changes (if using country duty)
+selectCountry.addEventListener('change', function(){
+  if(document.getElementById('selectProduct').value === 'country'){
+    const selected = countryList.find(c=>c.name===this.value);
+    if(selected){ dutyInput.value = selected.duty; tariffInput.value = selected.tariff; }
+  }
+});
+
+// Product type change
+const selectProduct = document.getElementById('selectProduct');
+selectProduct.addEventListener('change', function(){
+  const val = this.value;
+  if(val === 'cvc')      dutyInput.value = 16.00;
+  else if(val === 'poly') dutyInput.value = 28.00;
+  else if(val === 'country'){
+    const selected = countryList.find(c=>c.name===selectCountry.value);
+    if(selected){ dutyInput.value = selected.duty; tariffInput.value = selected.tariff; }
+  }
+});
+
+// Main LDP calculation
+function calculateLDP(){
+  const fob          = parseFloat(document.getElementById('inputFOB').value) || 0;
+  const commPct      = parseFloat(document.getElementById('inputComm').value) || 0;
+  const otherCosts   = parseFloat(document.getElementById('inputOther').value) || 0;
+  const firstSalePct = parseFloat(document.getElementById('inputFirstSale').value) || 0;
+  const dutyPct      = parseFloat(dutyInput.value) || 0;
+  const tariffPct    = parseFloat(tariffInput.value) || 0;
+
+  const manufacturerFOB = fob * (1 - firstSalePct/100);
+  const dutyUSD         = manufacturerFOB * (dutyPct/100);
+  const tariffUSD       = manufacturerFOB * (tariffPct/100);
+  const commissionUSD   = fob * (commPct/100);
+  const ldp             = manufacturerFOB + dutyUSD + tariffUSD + otherCosts + commissionUSD;
+
+  document.getElementById('outManu').textContent  = manufacturerFOB.toFixed(2);
+  document.getElementById('outDuty').textContent  = dutyUSD.toFixed(2);
+  document.getElementById('outTariff').textContent= tariffUSD.toFixed(2);
+  document.getElementById('outLDP').textContent   = ldp.toFixed(2);
+
+  return { fob, ldp, manufacturerFOB, commissionUSD, otherCosts, dutyPct, tariffPct, firstSalePct };
+}
+
+document.getElementById('btnCalc').addEventListener('click', calculateLDP);
+
+// Back-calculation: from target LDP to FOB
+function backCalcFOB(targetLDP){
+  const commPct      = parseFloat(document.getElementById('inputComm').value) || 0;
+  const otherCosts   = parseFloat(document.getElementById('inputOther').value) || 0;
+  const firstSalePct = parseFloat(document.getElementById('inputFirstSale').value) || 0;
+  const dutyPct      = parseFloat(dutyInput.value) || 0;
+  const tariffPct    = parseFloat(tariffInput.value) || 0;
+
+  const fsFactor     = 1 - firstSalePct/100;   // MFOB = FOB * fsFactor
+  const taxFactor    = 1 + (dutyPct + tariffPct)/100; // multiplier on MFOB
+  const commFactor   = commPct/100;            // commission on FOB
+
+  // Equation: targetLDP = FOB*fsFactor*taxFactor + FOB*commFactor + otherCosts
+  const coefficient = (fsFactor * taxFactor) + commFactor;
+  if(coefficient === 0) return 0;
+  return (targetLDP - otherCosts) / coefficient;
+}
+
+// Button: Calc FOB for target LDP
+const btnBackCalc = document.getElementById('btnBackCalc');
+btnBackCalc.addEventListener('click', ()=>{
+  const targetLDP = parseFloat(document.getElementById('inputTargetLDP').value) || 0;
+  if(!targetLDP){
+    resultText.textContent = 'Please enter a target LDP value.';
+    return;
+  }
+  const fobNeeded = backCalcFOB(targetLDP);
+  resultText.innerHTML = `To reach target LDP <b>$${targetLDP.toFixed(2)}</b>, suggested FOB is <b>$${fobNeeded.toFixed(3)}</b> (based on current duty, tariff, first sale & costs).`;
+});
+
+// Button: Reduce current LDP by X USD
+const btnReduce = document.getElementById('btnReduce');
+btnReduce.addEventListener('click', ()=>{
+  const current = calculateLDP();
+  const reduceBy = parseFloat(document.getElementById('inputReduce').value) || 0;
+  if(!reduceBy){
+    resultText.textContent = 'Enter how many dollars you want to reduce from current LDP.';
+    return;
+  }
+  const newTargetLDP = Math.max(current.ldp - reduceBy, 0);
+  const newFOB       = backCalcFOB(newTargetLDP);
+  resultText.innerHTML = `Current LDP is <b>$${current.ldp.toFixed(2)}</b>.<br>` +
+    `If buyer wants to reduce LDP by <b>$${reduceBy.toFixed(2)}</b>, new LDP ≈ <b>$${newTargetLDP.toFixed(2)}</b>.<br>` +
+    `To meet this, suggested new FOB ≈ <b>$${newFOB.toFixed(3)}</b>.`;
+});
+
+// Toggle settings (country duty/tariff table)
+const btnToggleSettings = document.getElementById('btnToggleSettings');
+const countrySettings   = document.getElementById('countrySettings');
+const countryTableBody  = document.getElementById('countryTableBody');
+
+// Build editable table rows
+countryList.forEach((c, idx)=>{
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td>${c.name}</td>
+    <td><input type="number" step="0.01" value="${c.duty}" data-idx="${idx}" data-field="duty" style="width:80px;padding:4px 6px;border-radius:6px;border:1px solid rgba(255,255,255,0.16);background:rgba(15,23,42,0.96);color:#e5edf7;"></td>
+    <td><input type="number" step="0.01" value="${c.tariff}" data-idx="${idx}" data-field="tariff" style="width:80px;padding:4px 6px;border-radius:6px;border:1px solid rgba(255,255,255,0.16);background:rgba(15,23,42,0.96);color:#e5edf7;"></td>
+  `;
+  countryTableBody.appendChild(tr);
+});
+
+// Update in-memory countryList when table edited
+countryTableBody.addEventListener('input', (e)=>{
+  const t = e.target;
+  const idx = t.getAttribute('data-idx');
+  const field = t.getAttribute('data-field');
+  if(idx !== null && field){
+    countryList[idx][field] = parseFloat(t.value) || 0;
+    // If currently selected country matches, refresh duty/tariff if using country mode
+    const selected = countryList.find(c=>c.name===selectCountry.value);
+    if(selected && selectProduct.value === 'country'){
+      dutyInput.value = selected.duty;
+      tariffInput.value = selected.tariff;
+    }
+  }
+});
+
+btnToggleSettings.addEventListener('click', ()=>{
+  countrySettings.style.display = countrySettings.style.display === 'none' ? 'block' : 'none';
+});
+</script>
+</body>
+</html>
