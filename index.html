@@ -194,11 +194,12 @@ countryList.forEach(c=>{
   selectCountry.appendChild(opt);
 });
 
-// Default to first country and populate duty/tariff
-if(countryList.length){
-  selectCountry.value = countryList[0].name;
-  dutyInput.value = countryList[0].duty;
-  tariffInput.value = countryList[0].tariff;
+// Default to BANGLADESH and populate duty/tariff
+const defaultCountry = countryList.find(c => c.name === 'BANGLADESH') || countryList[0];
+if(defaultCountry){
+  selectCountry.value = defaultCountry.name;
+  dutyInput.value = defaultCountry.duty;
+  tariffInput.value = defaultCountry.tariff;
 }
 
 // Update duty/tariff when country changes (if using country duty)
