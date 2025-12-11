@@ -289,8 +289,9 @@ btnReduce.addEventListener('click', ()=>{
   const newTargetLDP = Math.max(current.ldp - reduceBy, 0);
   const newFOB       = backCalcFOB(newTargetLDP);
   resultText.innerHTML = `Current LDP is <b>$${current.ldp.toFixed(2)}</b>.<br>` +
-    `If buyer wants to reduce LDP by <b>$${reduceBy.toFixed(2)}</b>, new LDP ≈ <b>$${newTargetLDP.toFixed(2)}</b>.<br>` +
-    `To meet this, suggested new FOB ≈ <b>$${newFOB.toFixed(3)}</b>.`;
+  `If buyer wants to reduce LDP by <b>$${reduceBy.toFixed(2)}</b>,<br>` +
+  `New LDP ≈ <b>$${newTargetLDP.toFixed(2)}</b>.<br>` +
+  `To meet this, suggested new FOB ≈ <b>$${newFOB.toFixed(2)}</b>.`;
 });
 
 // Toggle settings (country duty/tariff table)
@@ -335,3 +336,4 @@ btnToggleSettings.addEventListener('click', ()=>{
   </div>
 </body>
 </html>
+
